@@ -1,4 +1,99 @@
-# RISC-V-Multi-cycle-APB-MCU
+# 🚀 RISC-V/APB 기반 MCU 설계 (RISC-V/APB based MCU Design)
 
-🚀 RISC-V/APB 기반 MCU 설계 (RISC-V/APB based MCU Design)본 프로젝트는 RISC-V RV32I Multi-Cycle CPU와 AMBA APB 프로토콜을 기반으로 여러 주변 장치(Peripheral)를 통합한 마이크로컨트롤러 유닛(MCU) 시스템을 SystemVerilog로 설계 및 구현한 결과물입니다.1. 프로젝트 개요 (Project Overview)목표 및 특징프로젝트 목표: RV32I Multi-Cycle CPU 및 AMBA Bus Protocol을 사용하여 여러 주변 장치를 제어할 수 있는 MCU 시스템을 설계하고, SystemVerilog Testbench를 통해 검증하며, C 기반 펌웨어를 작성하고 컴파일합니다.핵심 특징:하드웨어 로직이 아닌 ROM에 저장된 **펌웨어(Firmware)**에 따라 동작이 결정되는 임베디드 시스템 구조입니다.AMBA APB Bus를 이용하여 CPU 코어와 주변 장치들을 효율적으로 연결합니다.개발 환경 및 도구구분내용하드웨어Digilent Basys 3 FPGA Board (검증용)소프트웨어Xilinx Vivado, PuTTy언어SystemVerilog (하드웨어), C (펌웨어)2. 시스템 아키텍처 (System Architecture)전체 시스템은 mcu.sv 모듈을 최상위 레벨로 하여 RV32I Core, APB Master, 그리고 APB Slave 주변 장치들로 구성됩니다.2.1. RISC-V RV32I Multi-Cycle CPU CoreRISC-V ISA의 기본 정수 버전인 RV32I를 구현하였으며, 하나의 명령어를 Fetch, Decode, Execute, Memory, Write Back의 여러 단계에 걸쳐 실행하는 Multi-Cycle 방식을 채택하여 클럭 효율을 높였습니다.단계 (Phase)설명 (Action)FetchPC가 가리키는 주소에서 명령어(IR)를 인출하고 PC를 +4로 업데이트합니다.DecodeIR의 레지스터 주소를 해독하고 레지스터 파일에서 데이터를 읽어옵니다.Execute명령어 유형에 따라 ALU 연산을 수행합니다.MemAccessLoad/Store 명령어에 따라 메모리 접근을 수행합니다.Write Back결과를 레지스터 파일에 기록합니다.2.2. AMBA APB Bus저속/저전력 주변 장치 연결에 최적화된 AMBA APB(Advanced Peripheral Bus) 프로토콜을 사용합니다.Master: APB_Master.svSlave: 각 주변 장치에 통합된 APB Slave 인터페이스 (APB_Slave.sv는 일반 템플릿)동작: IDLE $\to$ SETUP $\to$ ACCESS 의 3단계로 전송이 이루어집니다.2.3. 메모리 맵 (Memory Map)APB 주변 장치들은 다음과 같이 메모리 주소에 할당됩니다. (Base Address: 0x1000_0000)주변 장치 (Peripheral)베이스 주소 (Base Address)역할파일명ROM0x0000_0000명령어/펌웨어 저장ROM.svRAM0x1000_0000데이터 저장 공간RAM.svGPO0x1000_1000범용 출력 포트GPO.svGPI0x1000_2000범용 입력 포트GPI.svGPIO0x1000_3000범용 입출력 포트GPIO.svUART0x1000_4000직렬 통신 포트uart.sv3. 주요 구성 요소 (Core Components)파일명설명mcu.sv최상위 모듈. CPU, ROM, APB Master/Slaves를 연결하여 시스템을 통합합니다.CPU_RV32I.svRV32I CPU 코어. DataPath와 ControlUnit을 인스턴스화합니다.DataPath.svCPU의 데이터 경로. 레지스터 파일, ALU, PC 등을 포함합니다.ControlUnit.svCPU의 제어 장치. 명령어에 따라 DataPath의 제어 신호를 생성합니다.APB_Master.svCPU와 APB Bus 간의 통신을 중재합니다.code.memCPU가 실행할 C 기반 펌웨어의 기계어 코드(hex)를 담은 메모리 파일입니다.3.1. 주변 장치 세부 레지스터주변 장치레지스터 주소 (Offset)레지스터 이름역할GPO0x00Control Register (cr)출력 활성화/비활성화 제어0x04Output Data Register (odr)실제 출력 데이터GPI0x00Control Register (cr)입력 활성화/비활성화 제어0x04Input Data Register (idr)실제 입력 데이터 (Read Only)GPIO0x00Control Register (cr)포트 방향 제어 (1:출력, 0:입력)0x04Output Data Register (odr)출력 데이터0x08Input Data Register (idr)입력 데이터 (Read Only)UART0x00Data Register (DR)RX 데이터 읽기 / TX 데이터 쓰기0x04Status Register (SR)상태 플래그 (RXNE: Bit 0, TXC: Bit 1)4. 펌웨어 및 검증 (Firmware & Verification)4.1. C 언어 펌웨어펌웨어(code.mem으로 빌드됨)는 주변 장치를 활용하여 다음과 같이 동작합니다.통신: UART를 통해 주기적으로 현재 상태와 GPO 출력을 시리얼 포트로 전송합니다.제어: GPI 입력을 통해 세팅 모드에 진입하며, UART로 모드를 전환할 수 있도록 설계되었습니다.트러블슈팅: 컴파일러에서 RV32I 세트가 아닌 명령어가 사용되는 문제를 방지하기 위해, 컴파일러 옵션에 -march=rv32i를 명시하여 명령어 세트를 제한했습니다.4.2. SystemVerilog 검증UART 주변 장치를 DUT(Device Under Test)로 설정하고, environment에서 임의의 데이터를 송수신하며 검증을 수행했습니다.RX Pass 조건: send_data == rdata (보낸 데이터와 수신 데이터 일치)TX Pass 조건: wdata == received_data (쓴 데이터와 수신 측 데이터 일치)결과: 총 512회의 TX/RX 사이클 검증에서 All Pass를 확인했습니다.5. 시작하기 (Getting Started)클론: 본 저장소를 로컬 환경에 클론합니다.Bashgit clone [Your-Repo-URL]
-도구: Xilinx Vivado (또는 기타 SystemVerilog/FPGA 개발 환경)를 설치합니다.컴파일: Vivado 프로젝트를 생성하고 모든 .sv 파일을 추가합니다.시뮬레이션/합성:시뮬레이션: mcu.sv 또는 UART_Periph의 Testbench를 실행하여 로직을 검증합니다.합성/구현: mcu.sv를 Basys 3 FPGA 보드에 맞게 합성 및 구현하여 실제 동작을 확인합니다.6. 고찰 (Reflections)본 프로젝트를 통해 RV32I ISA의 Multi-Cycle 구현, AMBA APB 프로토콜의 동작 방식, 그리고 이를 활용한 다양한 주변 장치(UART, GPIO 등)의 설계를 학습할 수 있었습니다. 특히, 하드웨어와 펌웨어의 유기적인 연동을 통해 복잡한 임베디드 시스템이 동작하는 원리를 체감하였습니다. 초기 설계 시 RV32I의 제한적인 명령어 세트 때문에 복잡한 기능을 소프트웨어로 구현하는 데 어려움을 겪었으며, 이는 하드웨어와 소프트웨어 간의 **조화로운 설계(Co-Design)**의 중요성을 일깨워주었습니다.
+[cite_start]본 프로젝트는 **RISC-V RV32I Multi-Cycle CPU**와 **AMBA APB (Advanced Peripheral Bus)** 프로토콜을 기반으로 다양한 주변 장치(Peripheral)를 통합한 마이크로컨트롤러 유닛(MCU) 시스템을 **SystemVerilog**로 설계하고 FPGA 보드에서 검증한 결과물입니다[cite: 31].
+
+---
+
+## 1. 프로젝트 개요 (Project Overview)
+
+### 목표 및 특징
+* [cite_start]**프로젝트 목표**: RV32I Multi-Cycle CPU 및 AMBA Bus Protocol을 사용하여 여러 주변 장치를 사용할 수 있는 MCU를 설계하고, C 기반 펌웨어 작성 및 검증을 완료하는 것입니다[cite: 31, 590, 591, 592].
+* **핵심 특징**:
+    * [cite_start]하드웨어 회로가 아닌 **ROM에 담긴 펌웨어**에 따라 동작을 결정하는 임베디드 시스템 구조입니다[cite: 35, 594].
+    * [cite_start]**AMBA APB Bus**를 이용하여 여러 주변 장치들을 연결했습니다[cite: 35, 595].
+
+### 개발 환경 및 도구
+| 구분 | 내용 | 출처 |
+| :--- | :--- | :--- |
+| **하드웨어** | [cite_start]Digilent Basys 3 FPGA Board | [cite: 37, 597] |
+| **소프트웨어** | [cite_start]Xilinx Vivado, PuTTy | [cite: 38, 598] |
+| **언어** | [cite_start]SystemVerilog, C | [cite: 39, 599] |
+
+---
+
+## 2. 시스템 아키텍처 (System Architecture)
+
+[cite_start]전체 시스템은 RV32I Core, APB Master (`APB_Master.sv`), 그리고 APB Slave 주변 장치들로 구성됩니다[cite: 264, 265].
+
+### 2.1. RISC-V RV32I Multi-Cycle CPU Core
+* [cite_start]**ISA**: RISC-V 명령어 세트 아키텍처의 기본 정수(Integer) 버전 32비트 명령어 (RV32I)를 구현했습니다[cite: 42, 601].
+* [cite_start]**방식**: 하나의 명령어를 여러 단계(**Fetch, Decode, Execute, Memory, Write Back**)에 걸쳐 실행하는 **Multi-Cycle** 방식을 채택하여 클럭 효율이 높습니다[cite: 43, 44, 602, 603].
+
+### 2.2. AMBA APB Bus
+* [cite_start]**프로토콜**: AMBA 프로토콜 내에서 가장 낮은 대역폭을 가지며, 저속 저전력 주변 장치들을 연결하는 데 최적화된 버스입니다[cite: 242, 244, 631].
+* [cite_start]**전송**: **Non-pipelined** 방식으로 한 번에 하나의 전송만 처리하며, 주소와 데이터가 한 클럭 사이클에 동시에 처리되지 않습니다[cite: 245, 246, 632].
+* [cite_start]**상태 다이어그램**: 전송은 `IDLE` $\to$ `SETUP` $\to$ `ACCESS` 의 3단계로 이루어집니다[cite: 249, 252, 258].
+
+### 2.3. 메모리 맵 (Memory Map)
+[cite_start]주변 장치들은 `0x1000_0000` 주소부터 할당됩니다[cite: 505, 634].
+
+| 주변 장치 (Peripheral) | 오프셋 (Offset) | 주소 (Base Address) | PSEL Index | 파일명 |
+| :--- | :--- | :--- | :--- | :--- |
+| **ROM** | N/A | `0x0000_0000` | N/A | `ROM.sv` |
+| **RAM** | `0x0000` | `0x1000_0000` | `PSEL0` | `RAM.sv` |
+| **GPO** | `0x1000` | `0x1000_1000` | `PSEL1` | `GPO.sv` |
+| **GPI** | `0x2000` | `0x1000_2000` | `PSEL2` | `GPI.sv` |
+| **GPIO** | `0x3000` | `0x1000_3000` | `PSEL3` | `GPIO.sv` |
+| **UART** | `0x4000` | `0x1000_4000` | `PSEL4` | `uart.sv` |
+
+---
+
+## 3. 주변 장치 세부 설계 (Peripheral Details)
+
+### 3.1. UART (`uart.sv`)
+* [cite_start]**레지스터 구조**: C 코드에서 Data Register(DR)는 `0x00` 오프셋, Status Register(SR)는 `0x04` 오프셋에 매핑됩니다[cite: 520, 521].
+    * [cite_start]**`SR[0]` (RXNE)**: 수신 데이터 준비 플래그 (`slv_rx_ready_flag`와 연결)[cite: 521, 852].
+    * [cite_start]**`SR[1]` (TXC)**: 송신 준비 완료 플래그 (`~tx_busy`와 연결)[cite: 522, 852].
+* [cite_start]**RX/TX 동작**: Data Register(`slv_reg0`)에 쓰기 접근 발생 시 `tx_start` 펄스가 발생하여 전송을 시작합니다[cite: 847, 849]. [cite_start]RX 완료 신호(`rx_done`)가 들어오면 수신 데이터가 `slv_reg0`에 래치되고 `RXNE`가 설정됩니다[cite: 844, 845].
+
+### 3.2. GPO (`GPO.sv`)
+* [cite_start]**제어 레지스터**: Control Register(`cr`, `slv_reg0`)와 Output Data Register(`odr`, `slv_reg1`)가 있습니다[cite: 812].
+* [cite_start]**출력 로직**: `gpo[i]`는 `cr[i]`가 `1`일 때만 `odr[i]` 값을 출력하고, `0`일 때는 하이 임피던스 상태(`1'bz`)를 유지합니다[cite: 819, 820].
+
+### 3.3. GPI (`GPI.sv`)
+* [cite_start]**제어 레지스터**: Control Register(`cr`, `slv_reg0`)와 Input Data Register(`idr`)가 있습니다[cite: 667].
+* [cite_start]**입력 로직**: `idr[i]`는 `cr[i]`가 참일 때만 `gpi[i]` 값을 읽어옵니다[cite: 675, 676].
+
+### 3.4. GPIO (`GPIO.sv`)
+* [cite_start]**제어 레지스터**: Control Register(`cr`, `slv_reg0`), Output Data Register(`odr`, `slv_reg1`), Input Data Register(`idr`)가 있습니다[cite: 6].
+* [cite_start]**입출력 로직**: `cr[i]`가 `1`이면 출력으로 설정되어 `odr[i]`를 `gpio[i]`에 할당하고, `cr[i]`가 `0`이면 입력으로 설정되어 `gpio[i]`를 `idr[i]`에 할당합니다[cite: 15, 16].
+
+---
+
+## 4. 펌웨어 및 검증 (Firmware & Verification)
+
+### 4.1. C 언어 펌웨어 (Test Code)
+C 언어로 작성된 펌웨어는 주변 장치들을 사용하여 MCU의 동작을 제어합니다.
+* [cite_start]**주요 기능**: 주기적으로 UART로 현재 상태, GPO 출력을 수행하고, GPI로 세팅 모드에 진입하여 UART로 모드를 전환하는 펌웨어 로직을 설계했습니다[cite: 496, 497, 644, 645].
+* [cite_start]**UART 수신**: `while (!(UART_SR & UART_SR_RXNE))` 루프를 통해 수신이 완료될 때까지 대기(폴링)합니다[cite: 500, 504].
+* [cite_start]**컴파일 문제 해결**: 컴파일러에서 RV32I set이 아닌 명령어(예: `addi sp, sp, -32` 등)가 컴파일되는 문제를 해결하기 위해, 컴파일러 옵션에 `-march=rv32i -mabi=ilp32 -O0 -nostdlib -std=c99`를 지정하여 RV32I 명령어만 사용하도록 강제했습니다[cite: 543, 545, 652, 653].
+
+### 4.2. SystemVerilog 검증 (Verification)
+* **검증 대상**: APB-UART 주변 장치 (`dut (APB_UART)`)를 대상으로 검증을 수행했습니다.
+* **Pass 조건**:
+    * [cite_start]**RX Pass**: `send_data == rdata` [cite: 381, 637]
+    * [cite_start]**TX Pass**: `wdata == received_data` [cite: 382, 638]
+* [cite_start]**최종 결과**: 총 512번의 TX/RX 사이클 검증에서 **Pass tx: 512, rx: 512**를 달성했습니다[cite: 468].
+
+---
+
+
+
+## 5. 고찰 (Reflections)
+
+[cite_start]RV32I CPU에 APB Bus를 연결하고 주변 장치를 직접 설계·연결하는 경험을 통해 MCU에 가까운 시스템을 구현해보면서 임베디드 시스템의 구조와 동작 원리를 체감할 수 있었습니다[cite: 549, 658]. [cite_start]RV32I 명령어만 사용 가능했기 때문에 복잡한 기능 구현에 부족함을 느꼈으며, 하드웨어와 소프트웨어의 **조화로운 조합**이 필요하다는 것을 배웠습니다[cite: 548, 656, 657].
+
+## 6. 동작 영상 (Demo Video)
+프로젝트의 실제 동작 모습은 아래 링크에서 확인하실 수 있습니다.
+
+[FPGA 동작 영상 (Basys 3)] (https://youtu.be/JyGLBVhcDjw)
