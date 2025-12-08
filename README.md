@@ -1,6 +1,6 @@
 # 🚀 RISC-V/APB 기반 MCU 설계 (RISC-V/APB based MCU Design)
 
-[cite_start]본 프로젝트는 **RISC-V RV32I Multi-Cycle CPU**와 **AMBA APB (Advanced Peripheral Bus)** 프로토콜을 기반으로 다양한 주변 장치(Peripheral)를 통합한 마이크로컨트롤러 유닛(MCU) 시스템을 **SystemVerilog**로 설계하고 FPGA 보드에서 검증한 결과물입니다[cite: 31].
+본 프로젝트는 **RISC-V RV32I Multi-Cycle CPU**와 **AMBA APB (Advanced Peripheral Bus)** 프로토콜을 기반으로 다양한 주변 장치(Peripheral)를 통합한 마이크로컨트롤러 유닛(MCU) 시스템을 **SystemVerilog**로 설계하고 FPGA 보드에서 검증한 결과물입니다.
 
 ---
 
